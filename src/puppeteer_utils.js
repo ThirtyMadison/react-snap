@@ -220,6 +220,7 @@ const crawl = async opt => {
     if (!shuttingDown && !skipExistingFile) {
       try {
         const page = await browser.newPage();
+        await page.setDefaultNavigationTimeout(0); // prevent timeout during navigation
         await page._client.send("ServiceWorker.disable");
         await page.setCacheEnabled(options.puppeteer.cache);
         if (options.viewport) await page.setViewport(options.viewport);
