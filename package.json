@@ -5,7 +5,7 @@
   "main": "index.js",
   "author": "ThirtyMadison",
   "license": "MIT",
-  "repository": "stereobooster/react-snap",
+  "repository": "thirtymadison/react-snap",
   "engines": {
     "node": ">= 8.6.0"
   },
