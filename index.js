@@ -222,15 +222,15 @@ const preloadResources = opt => {
   return { ajaxCache, http2PushManifestItems };
 };
 
-const removeStyleTags = ({ page }) =>
-  page.evaluate(() => {
+const removeStyleTags = async ({ page }) =>
+  await page.evaluate(() => {
     Array.from(document.querySelectorAll("style")).forEach(ell => {
       ell.parentElement && ell.parentElement.removeChild(ell);
     });
   });
 
-const removeScriptTags = ({ page }) =>
-  page.evaluate(() => {
+const removeScriptTags = async ({ page }) =>
+  await page.evaluate(() => {
     Array.from(document.querySelectorAll("script")).forEach(ell => {
       ell.parentElement && ell.parentElement.removeChild(ell);
     });
@@ -367,21 +367,21 @@ const inlineCss = async opt => {
   };
 };
 
-const asyncScriptTags = ({ page }) => {
-  return page.evaluate(() => {
+const asyncScriptTags = async ({ page }) => {
+  return await page.evaluate(() => {
     Array.from(document.querySelectorAll("script[src]")).forEach(x => {
       x.setAttribute("async", "true");
     });
   });
 };
 
-const fixWebpackChunksIssue1 = ({
+const fixWebpackChunksIssue1 = async ({
   page,
   basePath,
   http2PushManifest,
   inlineCss
 }) => {
-  return page.evaluate(
+  return await page.evaluate(
     (basePath, http2PushManifest, inlineCss) => {
       const localScripts = Array.from(document.scripts).filter(
         x => x.src && x.src.startsWith(basePath)
@@ -436,13 +436,13 @@ const fixWebpackChunksIssue1 = ({
   );
 };
 
-const fixWebpackChunksIssue2 = ({
+const fixWebpackChunksIssue2 = async ({
   page,
   basePath,
   http2PushManifest,
   inlineCss
 }) => {
-  return page.evaluate(
+  return await page.evaluate(
     (basePath, http2PushManifest, inlineCss) => {
       const localScripts = Array.from(document.scripts).filter(
         x => x.src && x.src.startsWith(basePath)
