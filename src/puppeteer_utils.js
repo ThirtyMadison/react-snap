@@ -223,32 +223,9 @@ const crawl = async opt => {
         await page.setDefaultNavigationTimeout(0); // prevent timeout during navigation
         await page._client.send("ServiceWorker.disable");
         await page.setCacheEnabled(options.puppeteer.cache);
-
-        // 1. Intercept network requests.
-        await page.setRequestInterception(true)
-
-        page.on("request", req => {
-          // 2. Ignore requests for resources that don't produce DOM
-          // (images, stylesheets, media).
-          const allowlist = ["document", "script", "xhr", "fetch"]
-          if (!allowlist.includes(req.resourceType())) {
-            return req.abort()
-          }
-
-          // Don't load Google Analytics lib requests so pageviews aren't 2x.
-          const blockist = ['www.google-analytics.com', '/gtag/js', 'ga.js', 'analytics.js'];
-          if (blocklist.find(regex => req.url().match(regex))) {
-            return req.abort();
-          }
-
-          // 3. Pass through all other requests.
-          req.continue()
-        })
-
         if (options.viewport) await page.setViewport(options.viewport);
         if (options.skipThirdPartyRequests)
           await skipThirdPartyRequests({ page, options, basePath });
-
         enableLogging({
           page,
           options,
@@ -259,8 +236,6 @@ const crawl = async opt => {
           sourcemapStore
         });
         beforeFetch && beforeFetch({ page, route });
-
-
         await page.setUserAgent(options.userAgent);
         const tracker = createTracker(page);
         try {
