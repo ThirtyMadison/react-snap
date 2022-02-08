@@ -19,12 +19,15 @@ const defaultOptions = {
   destination: null,
   concurrency: 4,
   include: ["/"],
+  exclude: [],
+  // If you get a Timeout error, ignore and move on
+  fastFail: false,
   userAgent: "ReactSnap",
   // 4 params below will be refactored to one: `puppeteer: {}`
   // https://github.com/stereobooster/react-snap/issues/120
   headless: true,
   puppeteer: {
-    cache: true
+    cache: true,
   },
   puppeteerArgs: [],
   puppeteerExecutablePath: undefined,
@@ -37,12 +40,12 @@ const defaultOptions = {
     decodeEntities: true,
     keepClosingSlash: true,
     sortAttributes: true,
-    sortClassName: false
+    sortClassName: false,
   },
   // mobile first approach
   viewport: {
     width: 480,
-    height: 850
+    height: 850,
   },
   sourceMaps: true,
   //# workarounds
@@ -74,7 +77,7 @@ const defaultOptions = {
   //# another feature creep
   // tribute to Netflix Server Side Only React https://twitter.com/NetflixUIE/status/923374215041912833
   // but this will also remove code which registers service worker
-  removeScriptTags: false
+  removeScriptTags: false,
 };
 
 /**
@@ -82,10 +85,10 @@ const defaultOptions = {
  * @param {{source: ?string, destination: ?string, include: ?Array<string>, sourceMaps: ?boolean, skipThirdPartyRequests: ?boolean }} userOptions
  * @return {*}
  */
-const defaults = userOptions => {
+const defaults = (userOptions) => {
   const options = {
     ...defaultOptions,
-    ...userOptions
+    ...userOptions,
   };
   options.destination = options.destination || options.source;
 
@@ -133,18 +136,18 @@ const defaults = userOptions => {
   options.publicPath = options.publicPath.replace(/\/$/, "");
 
   options.include = options.include.map(
-    include => options.publicPath + include
+    (include) => options.publicPath + include
   );
   return options;
 };
 
-const normalizePath = path => (path === "/" ? "/" : path.replace(/\/$/, ""));
+const normalizePath = (path) => (path === "/" ? "/" : path.replace(/\/$/, ""));
 
 /**
  *
  * @param {{page: Page, basePath: string}} opt
  */
-const preloadResources = opt => {
+const preloadResources = (opt) => {
   const {
     page,
     basePath,
@@ -152,12 +155,12 @@ const preloadResources = opt => {
     cacheAjaxRequests,
     preconnectThirdParty,
     http2PushManifest,
-    ignoreForPreload
+    ignoreForPreload,
   } = opt;
   const ajaxCache = {};
   const http2PushManifestItems = [];
   const uniqueResources = new Set();
-  page.on("response", async response => {
+  page.on("response", async (response) => {
     const responseUrl = response.url();
     if (/^data:|blob:/i.test(responseUrl)) return;
     const ct = response.headers()["content-type"] || "";
@@ -168,10 +171,10 @@ const preloadResources = opt => {
         if (http2PushManifest) {
           http2PushManifestItems.push({
             link: route,
-            as: "image"
+            as: "image",
           });
         } else {
-          await page.evaluate(route => {
+          await page.evaluate((route) => {
             const linkTag = document.createElement("link");
             linkTag.setAttribute("rel", "preload");
             linkTag.setAttribute("as", "image");
@@ -190,7 +193,7 @@ const preloadResources = opt => {
         if (!ignoreForPreload.includes(fileName)) {
           http2PushManifestItems.push({
             link: route,
-            as: "script"
+            as: "script",
           });
         }
       } else if (http2PushManifest && /\.(css)$/.test(responseUrl)) {
@@ -201,7 +204,7 @@ const preloadResources = opt => {
         if (!ignoreForPreload.includes(fileName)) {
           http2PushManifestItems.push({
             link: route,
-            as: "style"
+            as: "style",
           });
         }
       }
@@ -211,7 +214,7 @@ const preloadResources = opt => {
       const domain = `${urlObj.protocol}//${urlObj.host}`;
       if (uniqueResources.has(domain)) return;
       uniqueResources.add(domain);
-      await page.evaluate(route => {
+      await page.evaluate((route) => {
         const linkTag = document.createElement("link");
         linkTag.setAttribute("rel", "preconnect");
         linkTag.setAttribute("href", route);
@@ -222,16 +225,16 @@ const preloadResources = opt => {
   return { ajaxCache, http2PushManifestItems };
 };
 
-const removeStyleTags = ({ page }) =>
-  page.evaluate(() => {
-    Array.from(document.querySelectorAll("style")).forEach(ell => {
+const removeStyleTags = async ({ page }) =>
+  await page.evaluate(() => {
+    Array.from(document.querySelectorAll("style")).forEach((ell) => {
       ell.parentElement && ell.parentElement.removeChild(ell);
     });
   });
 
-const removeScriptTags = ({ page }) =>
-  page.evaluate(() => {
-    Array.from(document.querySelectorAll("script")).forEach(ell => {
+const removeScriptTags = async ({ page }) =>
+  await page.evaluate(() => {
+    Array.from(document.querySelectorAll("script")).forEach((ell) => {
       ell.parentElement && ell.parentElement.removeChild(ell);
     });
   });
@@ -246,13 +249,13 @@ const preloadPolyfill = nativeFs.readFileSync(
  * @param {{page: Page}} opt
  * @return Promise
  */
-const removeBlobs = async opt => {
+const removeBlobs = async (opt) => {
   const { page } = opt;
   return page.evaluate(() => {
     const stylesheets = Array.from(
       document.querySelectorAll("link[rel=stylesheet]")
     );
-    stylesheets.forEach(link => {
+    stylesheets.forEach((link) => {
       if (link.href && link.href.startsWith("blob:")) {
         link.parentNode && link.parentNode.removeChild(link);
       }
@@ -264,15 +267,15 @@ const removeBlobs = async opt => {
  * @param {{page: Page, pageUrl: string, options: {skipThirdPartyRequests: boolean, userAgent: string}, basePath: string, browser: Browser}} opt
  * @return {Promise}
  */
-const inlineCss = async opt => {
+const inlineCss = async (opt) => {
   const { page, pageUrl, options, basePath, browser } = opt;
 
   const minimalcssResult = await minimalcss.minimize({
     urls: [pageUrl],
-    skippable: request =>
+    skippable: (request) =>
       options.skipThirdPartyRequests && !request.url().startsWith(basePath),
     browser: browser,
-    userAgent: options.userAgent
+    userAgent: options.userAgent,
   });
   const criticalCss = minimalcssResult.finalCss;
   const criticalCssSize = Buffer.byteLength(criticalCss, "utf8");
@@ -282,14 +285,14 @@ const inlineCss = async opt => {
       document.querySelectorAll("link[rel=stylesheet]")
     );
     const cssArray = await Promise.all(
-      stylesheets.map(async link => {
+      stylesheets.map(async (link) => {
         const response = await fetch(link.href);
         return response.text();
       })
     );
     return {
-      cssFiles: stylesheets.map(link => link.href),
-      allCss: cssArray.join("")
+      cssFiles: stylesheets.map((link) => link.href),
+      allCss: cssArray.join(""),
     };
   });
   const allCss = new CleanCSS(options.minifyCss).minify(result.allCss).styles;
@@ -324,7 +327,7 @@ const inlineCss = async opt => {
         const stylesheets = Array.from(
           document.querySelectorAll("link[rel=stylesheet]")
         );
-        stylesheets.forEach(link => {
+        stylesheets.forEach((link) => {
           noscriptTag.appendChild(link.cloneNode(false));
           link.setAttribute("rel", "preload");
           link.setAttribute("as", "style");
@@ -342,7 +345,7 @@ const inlineCss = async opt => {
       preloadPolyfill
     );
   } else {
-    await page.evaluate(allCss => {
+    await page.evaluate((allCss) => {
       if (!allCss) return;
 
       const head = document.head || document.getElementsByTagName("head")[0],
@@ -357,58 +360,58 @@ const inlineCss = async opt => {
       const stylesheets = Array.from(
         document.querySelectorAll("link[rel=stylesheet]")
       );
-      stylesheets.forEach(link => {
+      stylesheets.forEach((link) => {
         link.parentNode && link.parentNode.removeChild(link);
       });
     }, allCss);
   }
   return {
-    cssFiles: cssStrategy === "inline" ? result.cssFiles : []
+    cssFiles: cssStrategy === "inline" ? result.cssFiles : [],
   };
 };
 
-const asyncScriptTags = ({ page }) => {
-  return page.evaluate(() => {
-    Array.from(document.querySelectorAll("script[src]")).forEach(x => {
+const asyncScriptTags = async ({ page }) => {
+  return await page.evaluate(() => {
+    Array.from(document.querySelectorAll("script[src]")).forEach((x) => {
       x.setAttribute("async", "true");
     });
   });
 };
 
-const fixWebpackChunksIssue1 = ({
+const fixWebpackChunksIssue1 = async ({
   page,
   basePath,
   http2PushManifest,
-  inlineCss
+  inlineCss,
 }) => {
-  return page.evaluate(
+  return await page.evaluate(
     (basePath, http2PushManifest, inlineCss) => {
       const localScripts = Array.from(document.scripts).filter(
-        x => x.src && x.src.startsWith(basePath)
+        (x) => x.src && x.src.startsWith(basePath)
       );
       // CRA v1|v2.alpha
       const mainRegexp = /main\.[\w]{8}.js|main\.[\w]{8}\.chunk\.js/;
-      const mainScript = localScripts.find(x => mainRegexp.test(x.src));
+      const mainScript = localScripts.find((x) => mainRegexp.test(x.src));
       const firstStyle = document.querySelector("style");
 
       if (!mainScript) return;
 
       const chunkRegexp = /(\w+)\.[\w]{8}(\.chunk)?\.js/g;
-      const chunkScripts = localScripts.filter(x => {
+      const chunkScripts = localScripts.filter((x) => {
         const matched = chunkRegexp.exec(x.src);
         // we need to reset state of RegExp https://stackoverflow.com/a/11477448
         chunkRegexp.lastIndex = 0;
         return matched && matched[1] !== "main" && matched[1] !== "vendors";
       });
 
-      const mainScripts = localScripts.filter(x => {
+      const mainScripts = localScripts.filter((x) => {
         const matched = chunkRegexp.exec(x.src);
         // we need to reset state of RegExp https://stackoverflow.com/a/11477448
         chunkRegexp.lastIndex = 0;
         return matched && (matched[1] === "main" || matched[1] === "vendors");
       });
 
-      const createLink = x => {
+      const createLink = (x) => {
         if (http2PushManifest) return;
         const linkTag = document.createElement("link");
         linkTag.setAttribute("rel", "preload");
@@ -421,7 +424,7 @@ const fixWebpackChunksIssue1 = ({
         }
       };
 
-      mainScripts.map(x => createLink(x));
+      mainScripts.map((x) => createLink(x));
       for (let i = chunkScripts.length - 1; i >= 0; --i) {
         const x = chunkScripts[i];
         if (x.parentElement && mainScript.parentNode) {
@@ -436,20 +439,20 @@ const fixWebpackChunksIssue1 = ({
   );
 };
 
-const fixWebpackChunksIssue2 = ({
+const fixWebpackChunksIssue2 = async ({
   page,
   basePath,
   http2PushManifest,
-  inlineCss
+  inlineCss,
 }) => {
-  return page.evaluate(
+  return await page.evaluate(
     (basePath, http2PushManifest, inlineCss) => {
       const localScripts = Array.from(document.scripts).filter(
-        x => x.src && x.src.startsWith(basePath)
+        (x) => x.src && x.src.startsWith(basePath)
       );
       // CRA v2
       const mainRegexp = /main\.[\w]{8}\.chunk\.js/;
-      const mainScript = localScripts.find(x => mainRegexp.test(x.src));
+      const mainScript = localScripts.find((x) => mainRegexp.test(x.src));
       const firstStyle = document.querySelector("style");
 
       if (!mainScript) return;
@@ -457,22 +460,22 @@ const fixWebpackChunksIssue2 = ({
       const chunkRegexp = /(\w+)\.[\w]{8}\.chunk\.js/g;
 
       const headScripts = Array.from(document.querySelectorAll("head script"))
-        .filter(x => x.src && x.src.startsWith(basePath))
-        .filter(x => {
+        .filter((x) => x.src && x.src.startsWith(basePath))
+        .filter((x) => {
           const matched = chunkRegexp.exec(x.src);
           // we need to reset state of RegExp https://stackoverflow.com/a/11477448
           chunkRegexp.lastIndex = 0;
           return matched;
         });
 
-      const chunkScripts = localScripts.filter(x => {
+      const chunkScripts = localScripts.filter((x) => {
         const matched = chunkRegexp.exec(x.src);
         // we need to reset state of RegExp https://stackoverflow.com/a/11477448
         chunkRegexp.lastIndex = 0;
         return matched;
       });
 
-      const createLink = x => {
+      const createLink = (x) => {
         if (http2PushManifest) return;
         const linkTag = document.createElement("link");
         linkTag.setAttribute("rel", "preload");
@@ -510,28 +513,29 @@ const fixParcelChunksIssue = ({
   page,
   basePath,
   http2PushManifest,
-  inlineCss
+  inlineCss,
 }) => {
   return page.evaluate(
     (basePath, http2PushManifest, inlineCss) => {
-      const localScripts = Array.from(document.scripts)
-        .filter(x => x.src && x.src.startsWith(basePath))
+      const localScripts = Array.from(document.scripts).filter(
+        (x) => x.src && x.src.startsWith(basePath)
+      );
 
       const mainRegexp = /main\.[\w]{8}\.js/;
-      const mainScript = localScripts.find(x => mainRegexp.test(x.src));
+      const mainScript = localScripts.find((x) => mainRegexp.test(x.src));
       const firstStyle = document.querySelector("style");
 
       if (!mainScript) return;
 
       const chunkRegexp = /(\w+)\.[\w]{8}\.js/g;
-      const chunkScripts = localScripts.filter(x => {
+      const chunkScripts = localScripts.filter((x) => {
         const matched = chunkRegexp.exec(x.src);
         // we need to reset state of RegExp https://stackoverflow.com/a/11477448
         chunkRegexp.lastIndex = 0;
         return matched && matched[1] !== "main";
       });
 
-      const createLink = x => {
+      const createLink = (x) => {
         if (http2PushManifest) return;
         const linkTag = document.createElement("link");
         linkTag.setAttribute("rel", "preload");
@@ -560,10 +564,10 @@ const fixParcelChunksIssue = ({
 
 const fixInsertRule = ({ page }) => {
   return page.evaluate(() => {
-    Array.from(document.querySelectorAll("style")).forEach(style => {
+    Array.from(document.querySelectorAll("style")).forEach((style) => {
       if (style.innerHTML === "") {
         style.innerHTML = Array.from(style.sheet.rules)
-          .map(rule => rule.cssText)
+          .map((rule) => rule.cssText)
           .join("");
       }
     });
@@ -572,7 +576,7 @@ const fixInsertRule = ({ page }) => {
 
 const fixFormFields = ({ page }) => {
   return page.evaluate(() => {
-    Array.from(document.querySelectorAll("[type=radio]")).forEach(element => {
+    Array.from(document.querySelectorAll("[type=radio]")).forEach((element) => {
       if (element.checked) {
         element.setAttribute("checked", "checked");
       } else {
@@ -580,7 +584,7 @@ const fixFormFields = ({ page }) => {
       }
     });
     Array.from(document.querySelectorAll("[type=checkbox]")).forEach(
-      element => {
+      (element) => {
         if (element.checked) {
           element.setAttribute("checked", "checked");
         } else {
@@ -588,7 +592,7 @@ const fixFormFields = ({ page }) => {
         }
       }
     );
-    Array.from(document.querySelectorAll("option")).forEach(element => {
+    Array.from(document.querySelectorAll("option")).forEach((element) => {
       if (element.selected) {
         element.setAttribute("selected", "selected");
       } else {
@@ -657,7 +661,7 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
   const destinationDir = path.normalize(
     `${process.cwd()}/${options.destination}`
   );
-  const startServer = options => {
+  const startServer = (options) => {
     const app = express()
       .use(options.publicPath, serveStatic(sourceDir))
       .use(fallback("200.html", { root: sourceDir }));
@@ -705,7 +709,7 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
       const {
         preloadImages,
         cacheAjaxRequests,
-        preconnectThirdParty
+        preconnectThirdParty,
       } = options;
       if (
         preloadImages ||
@@ -721,7 +725,7 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
             cacheAjaxRequests,
             preconnectThirdParty,
             http2PushManifest,
-            ignoreForPreload: options.ignoreForPreload
+            ignoreForPreload: options.ignoreForPreload,
           }
         );
         ajaxCache[route] = ac;
@@ -739,17 +743,17 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
           pageUrl,
           options,
           basePath,
-          browser
+          browser,
         });
 
         if (http2PushManifest) {
           const filesToRemove = cssFiles
-            .filter(file => file.startsWith(basePath))
-            .map(file => file.replace(basePath, ""));
+            .filter((file) => file.startsWith(basePath))
+            .map((file) => file.replace(basePath, ""));
 
           for (let i = http2PushManifestItems[route].length - 1; i >= 0; i--) {
             const x = http2PushManifestItems[route][i];
-            filesToRemove.forEach(fileToRemove => {
+            filesToRemove.forEach((fileToRemove) => {
               if (x.link.startsWith(fileToRemove)) {
                 http2PushManifestItems[route].splice(i, 1);
               }
@@ -763,26 +767,26 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
           page,
           basePath,
           http2PushManifest,
-          inlineCss: options.inlineCss
+          inlineCss: options.inlineCss,
         });
       } else if (options.fixWebpackChunksIssue === "CRA2") {
         await fixWebpackChunksIssue2({
           page,
           basePath,
           http2PushManifest,
-          inlineCss: options.inlineCss
+          inlineCss: options.inlineCss,
         });
       } else if (options.fixWebpackChunksIssue === "CRA1") {
         await fixWebpackChunksIssue1({
           page,
           basePath,
           http2PushManifest,
-          inlineCss: options.inlineCss
+          inlineCss: options.inlineCss,
         });
       }
       if (options.asyncScriptTags) await asyncScriptTags({ page });
 
-      await page.evaluate(ajaxCache => {
+      await page.evaluate((ajaxCache) => {
         const snapEscape = (() => {
           const UNSAFE_CHARS_REGEXP = /[<>\/\u2028\u2029]/g;
           // Mapping of unsafe HTML and invalid JavaScript line terminator chars to their
@@ -792,15 +796,15 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
             ">": "\\u003E",
             "/": "\\u002F",
             "\u2028": "\\u2028",
-            "\u2029": "\\u2029"
+            "\u2029": "\\u2029",
           };
-          const escapeUnsafeChars = unsafeChar => ESCAPED_CHARS[unsafeChar];
-          return str => str.replace(UNSAFE_CHARS_REGEXP, escapeUnsafeChars);
+          const escapeUnsafeChars = (unsafeChar) => ESCAPED_CHARS[unsafeChar];
+          return (str) => str.replace(UNSAFE_CHARS_REGEXP, escapeUnsafeChars);
         })();
         // TODO: as of now it only prevents XSS attack,
         // but can stringify only basic data types
         // e.g. Date, Set, Map, NaN won't be handled right
-        const snapStringify = obj => snapEscape(JSON.stringify(obj));
+        const snapStringify = (obj) => snapEscape(JSON.stringify(obj));
 
         let scriptTagText = "";
         if (ajaxCache && Object.keys(ajaxCache).length > 0) {
@@ -815,7 +819,7 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
           Object.keys(state).length !== 0
         ) {
           scriptTagText += Object.keys(state)
-            .map(key => `window["${key}"]=${snapStringify(state[key])};`)
+            .map((key) => `window["${key}"]=${snapStringify(state[key])};`)
             .join("");
         }
         if (scriptTagText !== "") {
@@ -840,7 +844,7 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
         );
         routePath = normalizePath(routePath);
         if (routePath !== newPath) {
-          console.log(newPath)
+          console.log(newPath);
           console.log(`💬  in browser redirect (${newPath})`);
           addToQueue(newRoute);
         }
@@ -862,10 +866,10 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
                   {
                     key: "Link",
                     value: http2PushManifestItems[key]
-                      .map(x => `<${x.link}>;rel=preload;as=${x.as}`)
-                      .join(",")
-                  }
-                ]
+                      .map((x) => `<${x.link}>;rel=preload;as=${x.as}`)
+                      .join(","),
+                  },
+                ],
               });
             return accumulator;
           },
@@ -876,7 +880,7 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
           JSON.stringify(manifest)
         );
       }
-    }
+    },
   });
 };
 
