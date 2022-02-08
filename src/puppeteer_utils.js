@@ -177,7 +177,7 @@ const crawl = async opt => {
    * @returns {void}
    */
   const addToQueue = newUrl => {
-    const { hostname, search, hash, port, path } = url.parse(newUrl);
+    const { hostname, search, hash, port, pathname } = url.parse(newUrl);
     newUrl = newUrl.replace(`${search || ""}${hash || ""}`, "");
 
     // Ensures that only link on the same port are crawled
@@ -189,7 +189,6 @@ const crawl = async opt => {
     const isOnAppPort = port && port.toString() === options.port.toString();
   
     if (exclude.filter(regex => regex.test(pathname)).length > 0) {
-      console.log(`filtering out route: ${pathname}`)
       return;
     }
     if (hostname === "localhost" && isOnAppPort && !uniqueUrls.has(newUrl) && !streamClosed) {
