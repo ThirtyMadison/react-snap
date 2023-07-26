@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  annotations:
+    github.com/project-slug: ThirtyMadison/react-snap
+  description: React Snap
+  labels:
+    has_frontend: 'False'
+  links:
+  - icon: github
+    title: Github
+    url: https://github.com/ThirtyMadison/react-snap
+  name: react-snap
+  tags:
+  - javascript
+spec:
+  dependsOn: []
+  lifecycle: production
+  type: service
