@@ -1,1 +1,3 @@
-{}
+{
+  "extends": ["github>ThirtyMadison/renovate-config:default.json5"]
+}
